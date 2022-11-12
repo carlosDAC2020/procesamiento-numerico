@@ -29,7 +29,10 @@ pib_regiones = pd.read_csv("pib regiones.csv", sep=";")
 
 regiones=["Caribe","Oriental","Central","Pacífica","Bogotá","Antioquia","Valle del Cauca"]
 
-
+"""
+con esta funcion buacamos predecir a partir de los datos obtenidos en los dataframes 
+el comportamiento del PIB en cada region a mediano plazon 
+"""
 def predict_pib_region():
     # solicitamos y validamos la region 
     print(" predicon del PIB percapita de una region")
@@ -85,6 +88,10 @@ def predict_pib_region():
     print("{:^20,}{:^5}".format(round(ingr_mes,2),"Pesos"))
 
 
+"""
+esta funcion obtiene el modelo de regrecion entre el PIB y el indice de 
+pobreza multidimencional para entendir como uno influye en el otro 
+"""
 def predict_pm_pib_per():
     print(" prediccione de indices de pobreza a mediano plazo ")
     print(" Regiones ")

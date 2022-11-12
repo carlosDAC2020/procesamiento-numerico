@@ -20,114 +20,150 @@ los datos y poder generar predicciones
 """
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
+from sklearn import datasets, ensemble
 
 
 # leemos y guaradamos los datos de los archivos .csv en Dataframes
 data = pd.read_csv("data.csv", sep=";")
 pib_per_regiones = pd.read_csv("pib-per-regiones.csv", sep=";")
-pib_regiones = pd.read_csv("pib regiones.csv", sep=";")
+xes = pd.read_csv("pib regiones.csv", sep=";")
 
 regiones=["Caribe","Oriental","Central","Pacífica","Bogotá","Antioquia","Valle del Cauca"]
 
-"""
-con esta funcion buacamos predecir a partir de los datos obtenidos en los dataframes 
-el comportamiento del PIB en cada region a mediano plazon 
-"""
-def predict_pib_region():
+
+# regrecion años y pib toatl
+def LR_anios_PIB(reg):
+    # ontenemos las columnas correspondientes de la tabla 
+    x=xes["Anios"].values.reshape(-1, 1)
+    y=xes[reg].values.reshape(-1, 1)
+
+    # estandarizamos los datos ibtenidos del Dataframe
+    sc_x = StandardScaler()
+    sc_y = StandardScaler()
+
+    X_std = sc_x.fit_transform(x)
+    y_std = sc_y.fit_transform(y)
+
+    # declaramos el modelo de regrecion lineal
+    slr = LinearRegression()
+    # ss= ensemble.GradientBoostingRegressor()
+    slr.fit(X_std, y_std) # entrenamos el modelo 
+    
+    result={
+        "model":slr,
+        "sc_x":sc_x,
+        "sc_y":sc_y
+    }
+    return result
+
+# regrecion años y pib percapita
+def LR_anios_PIB_PER(reg):
+    # ontenemos las columnas correspondientes de la tabla 
+    x=xes["Anios"].values.reshape(-1, 1)
+    y=pib_per_regiones[reg].values.reshape(-1, 1)
+
+    # estandarizamos los datos ibtenidos del Dataframe
+    sc_x = StandardScaler()
+    sc_y = StandardScaler()
+
+    X_std = sc_x.fit_transform(x)
+    y_std = sc_y.fit_transform(y)
+
+    # declaramos el modelo de regrecion lineal
+    slr = LinearRegression()
+    slr.fit(X_std, y_std) # entrenamos el modelo 
+    
+    result={
+        "model":slr,
+        "sc_x":sc_x,
+        "sc_y":sc_y
+    }
+    return result
+
+# regrecion porcentaje de PM y PIB total 
+def LR_PIB_PB_MLT(reg):
+    pb_reg="PB-MLT-"+reg
+    pib_reg="PIB-"+reg
+
+    # ontenemos las columnas correspondientes de la tabla 
+    x = data[pib_reg].values.reshape(-1, 1)
+    y = data[pb_reg].values.reshape(-1, 1)
+    
+    # estandarizamos los datos ibtenidos del Dataframe
+    sc_x = StandardScaler()
+    sc_y = StandardScaler()
+    
+    x_std = sc_x.fit_transform(x)
+    y_std = sc_y.fit_transform(y)
+
+    # declaramos el modelo de regrecion
+    slr = LinearRegression()  
+    slr.fit(x_std, y_std ) # entrenamos el modelo 
+    
+    result={
+        "model":slr,
+        "sc_x":sc_x,
+        "sc_y":sc_y
+    }
+    return result
+
+def regression_evaluator(reg, slr1, slr2, slr3, year_start, year_end):
+    print(" analisis en la region ",reg)
+    print(" anios de ",year_start, " a ",year_end)
+    
+    while year_start<=year_end:
+        print("-"*50)
+        # vamos etandarizando el año de prediccion
+        year_start_std =  slr1["sc_x"].transform(np.array([year_start]).reshape(-1,1))
+
+        # realizamos la predicciones 
+        pib_predict= slr1["sc_y"].inverse_transform(slr1["model"].predict(year_start_std))
+        pib_per_predict= slr2["sc_y"].inverse_transform(slr2["model"].predict(year_start_std))
+
+        # estandarizamos el PIB obtenido en la prediccion 
+        pib_predict_std = slr3["sc_x"].transform(np.array([pib_predict]).reshape(-1,1))
+        # relaizamos la prediccion del indice de pobreza multidimencional
+        PB_MLT_predict = slr3["sc_y"].inverse_transform(slr3["model"].predict(pib_predict_std))
+        
+        # mostramos resultados 
+        print("\n prediciones en ele anio ",year_start)
+        print("{:^25}{:^20,}{:^20}".format("PIB",round(pib_predict[0][0],2),"Miles de millones de pesos"))
+        print("{:^25}{:^20,}{:^5}".format("PIB Per-Capita",round(pib_per_predict[0][0],2),"Pesos"))
+        ingr_mes = pib_per_predict[0][0]/12
+        print("\n Se deduce que los ingresos mensuales por persona seran aproximandamente de ")
+        print("{:^20,}{:^5}".format(round(ingr_mes,2),"Pesos"))
+
+        print("\n Aprocimandamente el porcentaje de poblacion en pobreza multidimencional seria del ",round(PB_MLT_predict[0][0],2)," %")
+
+        year_start+=1
+        
+
+
+def run():
     # solicitamos y validamos la region 
-    print(" predicon del PIB percapita de una region")
+    print(" Analisis de indicadores de pobreza multidimencional a mediano plazo ")
     print(" Regiones")
     i=1
     for r in regiones:
         print("#",i,":",r)
         i+=1
     indr=int(input("\n elija la region a predecir: "))
-
     reg=regiones[indr-1]
 
-    # ontenemos las columnas correspondientes de la tabla 
-    x=pib_regiones["Anios"].values.reshape(-1, 1)
-    y1=pib_regiones[reg].values.reshape(-1, 1)
-    y2=pib_per_regiones[reg].values.reshape(-1, 1)
+    print("\n ingresa un intervalo de anios a mediano plazo para evaluar")
+    year_start=int(input("anio inicial:"))
+    year_end=int(input("anio final:"))
+    while year_end<=year_start:
+        print(" ingresa un anio superior al inicial !!!")
+        year_end=int(input("anio final:"))
 
-    # estandarizamos los datos ibtenidos del Dataframe
-    sc_x = StandardScaler()
-    sc_y1 = StandardScaler()
-    sc_y2 = StandardScaler()
-
-    X_std = sc_x.fit_transform(x)
-    y1_std = sc_y1.fit_transform(y1)
-    y2_std = sc_y2.fit_transform(y2)
-
-    # declaramos las regrecionde de :
-    slr_pib_regiones = LinearRegression() # PIB por regiones
-    # entrenamos el modelo de regrecion slr_pib_regiones 
-    slr_pib_regiones.fit(X_std, y1_std) 
-
-    slr_pib_per_regiones = LinearRegression() # PIB per-capita regiones
-    # entrenamos el modelo de regrecion slr_pib_per_regiones 
-    slr_pib_per_regiones.fit(X_std, y2_std) 
-
-    # solicitamos el año a predecir 
-    anio_predict = int(input("ingresa el año a predecir: "))
-
-    # estandarizamos el año a predecir 
-    anio_predict_std = sc_x.transform(np.array([anio_predict]).reshape(-1,1))
-    
-    # realizamos la predicciones 
-    pib_predict=sc_y1.inverse_transform(slr_pib_regiones.predict(anio_predict_std))
-    pib_per_predict=sc_y2.inverse_transform(slr_pib_per_regiones.predict(anio_predict_std))
-    
-    # mostramos resultados 
-    print("\n prediciones PIB en la region ",regiones[indr-1]," en ele anio ",anio_predict)
-    print("{:^20}{:^20,}{:^20}".format("TOTAL",round(pib_predict[0][0],2),"Miles de millones de pesos"))
-    print("{:^20}{:^20,}{:^5}".format("Per-Capita",round(pib_per_predict[0][0],2),"Pesos"))
-
-    ingr_mes = pib_per_predict[0][0]/12
-    print("\n Se deduce que los ingresos mensuales por persona seran aproximandamente de ")
-    print("{:^20,}{:^5}".format(round(ingr_mes,2),"Pesos"))
+    # obtenemos los modelos de regrecion 
+    slr_x_x_amio = LR_anios_PIB(reg)
+    slr_pib_per_x_amio = LR_anios_PIB_PER(reg)
+    slr_PB_MLT_PIB = LR_PIB_PB_MLT(reg)
+    # evaluamos los modelos de regrecion en el rango de años seleccionado por el usuario
+    regression_evaluator(reg, slr_x_x_amio, slr_pib_per_x_amio, slr_PB_MLT_PIB, year_start, year_end)
 
 
-"""
-esta funcion obtiene el modelo de regrecion entre el PIB y el indice de 
-pobreza multidimencional para entendir como uno influye en el otro 
-"""
-def predict_pm_pib_per():
-    print(" prediccione de indices de pobreza a mediano plazo ")
-    print(" Regiones ")
-    i=1
-    for r in regiones:
-        print("#",i,":",r)
-        i+=1
-    indr=int(input("\n elija la region a evaluar: "))
-
-    pb_reg="PB-MLT-"+regiones[indr-1]
-    pib_reg="PIB-"+regiones[indr-1]
-
-    # ontenemos las columnas correspondientes de la tabla 
-    anios=data["Anios"].values.reshape(-1, 1)
-
-    PIB_region = data[pib_reg].values.reshape(-1, 1)
-    PB_MLT_region = data[pb_reg].values.reshape(-1, 1)
-    
-
-    # estandarizamos los datos ibtenidos del Dataframe
-    sc_anios = StandardScaler()
-    sc_PIB_region = StandardScaler()
-    sc_PB_MLT_region = StandardScaler()
-    
-    PIB_region_std = sc_PIB_region.fit_transform(PIB_region)
-    PB_MLT_region_std = sc_PB_MLT_region.fit_transform(PB_MLT_region)
-
-    # declaramos las regrecionde de :
-    slr_PB_MLT = LinearRegression()  # pobresa multidimencional
-    slr_PB_MLT.fit(PIB_region_std, PB_MLT_region_std ) # entrenamos el modelo de regrecion
-
-    plt.scatter(PIB_region_std,PB_MLT_region_std)
-    plt.plot(PIB_region_std,slr_PB_MLT.predict(PB_MLT_region_std), color='red')
-    plt.ylabel("PB-MLT")
-    plt.xlabel("PIB-region")
-    plt.show()
-    
-#predict_pm_pib_per()
-#predict_pib_region()
+if __name__=="__main__":
+    run()

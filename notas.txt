@@ -1,0 +1,3 @@
+omandos a utilizar 
+
+#  .\venv\scripts\activate : cativar entorno virtual 

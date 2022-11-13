@@ -46,7 +46,6 @@ def LR_anios_PIB(reg):
 
     # declaramos el modelo de regrecion lineal
     slr = LinearRegression()
-    # ss= ensemble.GradientBoostingRegressor()
     slr.fit(X_std, y_std) # entrenamos el modelo 
     
     result={
